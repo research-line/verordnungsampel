@@ -16,7 +16,13 @@ from verordnungsampel import __version__
 from verordnungsampel.db.connection import open_database
 from verordnungsampel.db.seed import ensure_seed_data
 from verordnungsampel.engine.evaluator import evaluate
+from verordnungsampel.engine.justification_fsm import (
+    JustificationAnswers,
+    JustificationError,
+    JustificationFSM,
+)
 from verordnungsampel.engine.praxisbesonderheit import find_matching
+from verordnungsampel.output import WorkflowContext, build_workflow
 
 MANIFEST = {
     "name": "VerordnungsAmpel",
@@ -184,7 +190,7 @@ HTML_TEMPLATE = """
       font-weight: 600;
       margin-bottom: 0.35rem;
     }
-    input {
+    input, textarea {
       width: 100%;
       border: 1px solid rgba(34, 52, 39, 0.16);
       border-radius: 14px;
@@ -193,9 +199,26 @@ HTML_TEMPLATE = """
       background: rgba(255, 255, 255, 0.96);
       color: var(--text);
     }
-    input:focus {
+    textarea {
+      min-height: 7.5rem;
+      resize: vertical;
+    }
+    input:focus, textarea:focus {
       outline: 2px solid rgba(47, 125, 50, 0.25);
       border-color: rgba(47, 125, 50, 0.4);
+    }
+    .checkbox {
+      display: flex;
+      gap: 0.7rem;
+      align-items: flex-start;
+      margin-top: 1rem;
+      color: var(--muted);
+      font-weight: 500;
+      line-height: 1.45;
+    }
+    .checkbox input {
+      width: auto;
+      margin-top: 0.2rem;
     }
     .button-row {
       display: flex;
@@ -228,6 +251,10 @@ HTML_TEMPLATE = """
     .alert.error {
       background: rgba(181, 58, 45, 0.12);
       color: #7f261e;
+    }
+    .alert.success {
+      background: rgba(47, 125, 50, 0.12);
+      color: #214d27;
     }
     .result-head {
       display: flex;
@@ -276,6 +303,16 @@ HTML_TEMPLATE = """
     code {
       font-family: "Cascadia Code", "Consolas", monospace;
       font-size: 0.95em;
+    }
+    pre {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      border-radius: 16px;
+      background: rgba(30, 42, 32, 0.06);
+      border: 1px solid var(--border);
+      padding: 1rem;
+      color: var(--text);
+      line-height: 1.45;
     }
   </style>
 </head>
@@ -364,6 +401,89 @@ HTML_TEMPLATE = """
 
         <p class="footer-note">API-Pendant für spätere PWA-Schichten: <code>POST /api/check</code></p>
       </section>
+
+      <div class="grid">
+        <section class="card">
+          <h2 style="margin-top: 0;">Strukturierte Begründung</h2>
+          <p>Lokale Web-Maske für den HSM-Pfad aus der CLI. Sie validiert die Angaben, schreibt aber im Browser-Prototyp keinen Compliance-Log.</p>
+          <form method="post" novalidate>
+            <input type="hidden" name="web_action" value="justify">
+            <input type="hidden" name="icd" value="{{ result.icd }}">
+            <input type="hidden" name="atc" value="{{ result.atc }}">
+            <input type="hidden" name="alter" value="{{ result.alter or '' }}">
+            <label for="diagnose">Diagnose und Verlauf</label>
+            <textarea id="diagnose" name="diagnose" placeholder="Diagnose, Schweregrad und Verlauf festhalten">{{ followup_data.diagnose }}</textarea>
+
+            <label for="vorbehandlung">Vorbehandlung</label>
+            <textarea id="vorbehandlung" name="vorbehandlung" placeholder="Substanzen, Dauer, Dosis und Ergebnis">{{ followup_data.vorbehandlung }}</textarea>
+
+            <label for="therapieversagen">Therapieversagen / Kontraindikation</label>
+            <textarea id="therapieversagen" name="therapieversagen" placeholder="Warum war die Vorbehandlung nicht ausreichend?">{{ followup_data.therapieversagen }}</textarea>
+
+            <label for="praxisbesonderheit">Praxisbesonderheit (optional)</label>
+            <textarea id="praxisbesonderheit" name="praxisbesonderheit" placeholder="Leer lassen, wenn keine einschlägige Praxisbesonderheit vorliegt">{{ followup_data.praxisbesonderheit }}</textarea>
+
+            <details>
+              <summary>BSG-Off-Label-Kriterien</summary>
+              <label for="schwerwiegende_erkrankung">Schwerwiegende Erkrankung</label>
+              <textarea id="schwerwiegende_erkrankung" name="schwerwiegende_erkrankung">{{ followup_data.schwerwiegende_erkrankung }}</textarea>
+              <label for="keine_alternative">Keine Alternative</label>
+              <textarea id="keine_alternative" name="keine_alternative">{{ followup_data.keine_alternative }}</textarea>
+              <label for="begruendete_erfolgsaussicht">Begründete Erfolgsaussicht</label>
+              <textarea id="begruendete_erfolgsaussicht" name="begruendete_erfolgsaussicht">{{ followup_data.begruendete_erfolgsaussicht }}</textarea>
+            </details>
+
+            <label class="checkbox">
+              <input type="checkbox" name="confirm" value="on"{% if followup_data.confirm %} checked{% endif %}>
+              Ich bestätige, dass die Angaben im Moment der Verordnung zutreffen.
+            </label>
+            <div class="button-row">
+              <button type="submit">Begründung prüfen</button>
+            </div>
+          </form>
+
+          {% if justification_result %}
+            <div class="alert success">Begründung validiert. Erforderliche Schritte: {{ justification_result.required_states | join(", ") if justification_result.required_states else "keine" }}.</div>
+          {% endif %}
+        </section>
+
+        <section class="card">
+          <h2 style="margin-top: 0;">Vorab-Workflow</h2>
+          <p>Lokale Web-Maske für Antrag, Stellungnahme oder internen Hinweis. Patientendaten sollen pseudonymisiert bleiben.</p>
+          <form method="post" novalidate>
+            <input type="hidden" name="web_action" value="workflow">
+            <input type="hidden" name="icd" value="{{ result.icd }}">
+            <input type="hidden" name="atc" value="{{ result.atc }}">
+            <input type="hidden" name="alter" value="{{ result.alter or '' }}">
+            <div class="grid">
+              <div>
+                <label for="kk">Krankenkasse</label>
+                <input id="kk" name="kk" value="{{ workflow_data.kk }}" placeholder="z. B. Musterkasse">
+              </div>
+              <div>
+                <label for="patient">Patienten-Kürzel</label>
+                <input id="patient" name="patient" value="{{ workflow_data.patient }}" placeholder="z. B. P-4711">
+              </div>
+              <div>
+                <label for="praxis">Praxis</label>
+                <input id="praxis" name="praxis" value="{{ workflow_data.praxis }}" placeholder="z. B. Musterpraxis">
+              </div>
+              <div>
+                <label for="arzt">Arzt / Ärztin</label>
+                <input id="arzt" name="arzt" value="{{ workflow_data.arzt }}" placeholder="z. B. Dr. med. Muster">
+              </div>
+            </div>
+            <div class="button-row">
+              <button type="submit">Workflow-Text erzeugen</button>
+            </div>
+          </form>
+
+          {% if workflow_result %}
+            <div class="alert success">Workflow-Typ: {{ workflow_result.workflow.workflow_type }}</div>
+            <pre>{{ workflow_result.rendered_text }}</pre>
+          {% endif %}
+        </section>
+      </div>
     {% endif %}
   </main>
   <script>
@@ -394,14 +514,14 @@ def _ensure_seed_data(conn: sqlite3.Connection) -> None:
     ensure_seed_data(conn)
 
 
-def _run_check(
+def _evaluate_case(
     icd: str | None,
     atc: str | None,
     alter: Any = None,
     *,
     db_path: str | None = None,
-) -> dict[str, Any]:
-    """Fuehrt eine Browser-Pruefung gegen die bestehende Fachlogik aus."""
+):
+    """Fuehrt die gemeinsame Fachlogik aus und liefert rohe Ergebnisobjekte."""
     icd_norm = (icd or "").strip().upper()
     atc_norm = (atc or "").strip().upper()
     if not icd_norm:
@@ -417,11 +537,111 @@ def _run_check(
         praxisbesonderheiten = find_matching(icd_norm, atc_norm, conn=conn)
     finally:
         conn.close()
+    return ergebnis, praxisbesonderheiten
 
+
+def _serialize_check(ergebnis: Any, praxisbesonderheiten: list[Any]) -> dict[str, Any]:
+    """Serialisiert Ampel- und Praxisbesonderheiten-Daten fuer Browser/API."""
     payload = ergebnis.to_dict()
     payload["container_hinweise"] = ergebnis.container_hinweise
     payload["praxisbesonderheiten"] = [pb.to_dict() for pb in praxisbesonderheiten]
     return payload
+
+
+def _run_check(
+    icd: str | None,
+    atc: str | None,
+    alter: Any = None,
+    *,
+    db_path: str | None = None,
+) -> dict[str, Any]:
+    """Fuehrt eine Browser-Pruefung gegen die bestehende Fachlogik aus."""
+    ergebnis, praxisbesonderheiten = _evaluate_case(icd, atc, alter, db_path=db_path)
+    return _serialize_check(ergebnis, praxisbesonderheiten)
+
+
+def _is_truthy(value: Any) -> bool:
+    """Normalisiert Checkbox-/JSON-Werte fuer den Confirm-Schritt."""
+    if value is True:
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in {"1", "true", "yes", "ja", "on"}
+    return False
+
+
+def _normalize_justification_answers(raw: Any) -> JustificationAnswers:
+    """Mappt Web-Formular- oder JSON-Antworten auf den FSM-Vertrag."""
+    if not isinstance(raw, dict):
+        raw = {}
+    bsg = raw.get("bsg_off_label")
+    if not isinstance(bsg, dict):
+        bsg = {
+            "schwerwiegende_erkrankung": raw.get("schwerwiegende_erkrankung", ""),
+            "keine_alternative": raw.get("keine_alternative", ""),
+            "begruendete_erfolgsaussicht": raw.get("begruendete_erfolgsaussicht", ""),
+        }
+    return JustificationAnswers(
+        data={
+            "diagnose": raw.get("diagnose", ""),
+            "vorbehandlung": raw.get("vorbehandlung", ""),
+            "therapieversagen": raw.get("therapieversagen", ""),
+            "bsg_off_label": bsg,
+            "praxisbesonderheit": raw.get("praxisbesonderheit", ""),
+            "confirm": _is_truthy(raw.get("confirm")),
+        }
+    )
+
+
+def _run_justification(
+    icd: str | None,
+    atc: str | None,
+    alter: Any = None,
+    answers: Any = None,
+    *,
+    db_path: str | None = None,
+) -> dict[str, Any]:
+    """Validiert eine strukturierte Begruendung fuer den Web/PWA-Pfad."""
+    ergebnis, praxisbesonderheiten = _evaluate_case(icd, atc, alter, db_path=db_path)
+    fsm = JustificationFSM(ergebnis)
+    justification = fsm.run(_normalize_justification_answers(answers))
+    return {
+        "result": _serialize_check(ergebnis, praxisbesonderheiten),
+        "required_steps": [step.state.value for step in fsm.iter_steps()],
+        "justification": justification.to_dict(),
+    }
+
+
+def _workflow_context_from_mapping(raw: Any) -> WorkflowContext:
+    """Erzeugt den optionalen Workflow-Kontext aus Formular- oder JSON-Daten."""
+    if not isinstance(raw, dict):
+        raw = {}
+    return WorkflowContext(
+        praxis_name=raw.get("praxis_name") or raw.get("praxis"),
+        praxis_adresse=raw.get("praxis_adresse"),
+        arzt_name=raw.get("arzt_name") or raw.get("arzt"),
+        bsnr=raw.get("bsnr"),
+        lanr=raw.get("lanr"),
+        kk_name=raw.get("kk_name") or raw.get("kk"),
+        patient_kennung=raw.get("patient_kennung") or raw.get("patient"),
+    )
+
+
+def _run_workflow(
+    icd: str | None,
+    atc: str | None,
+    alter: Any = None,
+    context: Any = None,
+    *,
+    db_path: str | None = None,
+) -> dict[str, Any]:
+    """Generiert den Vorab-Workflow ueber die bestehende Workflow-Engine."""
+    ergebnis, praxisbesonderheiten = _evaluate_case(icd, atc, alter, db_path=db_path)
+    output = build_workflow(ergebnis, _workflow_context_from_mapping(context))
+    return {
+        "result": _serialize_check(ergebnis, praxisbesonderheiten),
+        "workflow": output.to_dict(),
+        "rendered_text": output.render_full(),
+    }
 
 
 def create_app(test_config: dict[str, Any] | None = None) -> Flask:
@@ -448,13 +668,32 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
     @app.route("/", methods=["GET", "POST"])
     def index() -> str:
         result = None
+        justification_result = None
+        workflow_result = None
         error = None
         form_data = {
             "icd": request.form.get("icd", ""),
             "atc": request.form.get("atc", ""),
             "alter": request.form.get("alter", ""),
         }
+        followup_data = {
+            "diagnose": request.form.get("diagnose", ""),
+            "vorbehandlung": request.form.get("vorbehandlung", ""),
+            "therapieversagen": request.form.get("therapieversagen", ""),
+            "praxisbesonderheit": request.form.get("praxisbesonderheit", ""),
+            "schwerwiegende_erkrankung": request.form.get("schwerwiegende_erkrankung", ""),
+            "keine_alternative": request.form.get("keine_alternative", ""),
+            "begruendete_erfolgsaussicht": request.form.get("begruendete_erfolgsaussicht", ""),
+            "confirm": request.form.get("confirm") == "on",
+        }
+        workflow_data = {
+            "kk": request.form.get("kk", ""),
+            "patient": request.form.get("patient", ""),
+            "praxis": request.form.get("praxis", ""),
+            "arzt": request.form.get("arzt", ""),
+        }
         if request.method == "POST":
+            web_action = request.form.get("web_action", "check")
             try:
                 result = _run_check(
                     form_data["icd"],
@@ -462,15 +701,44 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                     form_data["alter"],
                     db_path=app.config.get("DATABASE"),
                 )
+                if web_action == "justify":
+                    payload = _run_justification(
+                        form_data["icd"],
+                        form_data["atc"],
+                        form_data["alter"],
+                        followup_data,
+                        db_path=app.config.get("DATABASE"),
+                    )
+                    result = payload["result"]
+                    justification_result = payload["justification"]
+                elif web_action == "workflow":
+                    payload = _run_workflow(
+                        form_data["icd"],
+                        form_data["atc"],
+                        form_data["alter"],
+                        workflow_data,
+                        db_path=app.config.get("DATABASE"),
+                    )
+                    result = payload["result"]
+                    workflow_result = {
+                        "workflow": payload["workflow"],
+                        "rendered_text": payload["rendered_text"],
+                    }
+            except JustificationError as exc:
+                error = "Begründung unvollständig: " + "; ".join(exc.errors)
             except ValueError as exc:
                 error = str(exc)
         return render_template_string(
             HTML_TEMPLATE,
             ampel_labels=AMPel_LABELS,
             disclaimer=app.config["DISCLAIMER"],
+            followup_data=followup_data,
             error=error,
             form_data=form_data,
+            justification_result=justification_result,
             result=result,
+            workflow_data=workflow_data,
+            workflow_result=workflow_result,
             version=__version__,
         )
 
@@ -494,6 +762,56 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 "version": __version__,
                 "disclaimer": app.config["DISCLAIMER"],
                 "result": result,
+            }
+        )
+
+    @app.post("/api/justify")
+    def api_justify() -> Any:
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"status": "error", "error": "JSON-Objekt erwartet."}), 400
+        try:
+            result = _run_justification(
+                payload.get("icd"),
+                payload.get("atc"),
+                payload.get("alter"),
+                payload.get("answers", {}),
+                db_path=app.config.get("DATABASE"),
+            )
+        except JustificationError as exc:
+            return jsonify({"status": "error", "errors": exc.errors}), 400
+        except ValueError as exc:
+            return jsonify({"status": "error", "error": str(exc)}), 400
+        return jsonify(
+            {
+                "status": "ok",
+                "version": __version__,
+                "disclaimer": app.config["DISCLAIMER"],
+                **result,
+            }
+        )
+
+    @app.post("/api/workflow")
+    def api_workflow() -> Any:
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify({"status": "error", "error": "JSON-Objekt erwartet."}), 400
+        try:
+            result = _run_workflow(
+                payload.get("icd"),
+                payload.get("atc"),
+                payload.get("alter"),
+                payload.get("context", {}),
+                db_path=app.config.get("DATABASE"),
+            )
+        except ValueError as exc:
+            return jsonify({"status": "error", "error": str(exc)}), 400
+        return jsonify(
+            {
+                "status": "ok",
+                "version": __version__,
+                "disclaimer": app.config["DISCLAIMER"],
+                **result,
             }
         )
 

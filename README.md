@@ -325,8 +325,13 @@ python -m verordnungsampel.cli.main web
 
 Open `http://127.0.0.1:5000/` afterwards. The prototype includes a manifest,
 service worker, offline fallback and iOS Add-to-Home-Screen metadata for local
-PWA testing; structured rationale capture and workflow text generation remain
-CLI / desktop functions for now.
+PWA testing. The browser prototype also exposes local forms and JSON endpoints
+for structured rationale capture and prior-clarification workflow text:
+
+- `POST /api/justify` validates the HSM rationale contract without writing a
+  browser-side compliance log.
+- `POST /api/workflow` renders the same prior-clarification text as the CLI
+  from the existing workflow engine.
 
 ### Screenshot
 

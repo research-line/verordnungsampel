@@ -13,6 +13,21 @@ def _make_client(tmp_path):
     return app.test_client()
 
 
+def _valid_justification_answers():
+    return {
+        "diagnose": "Angststoerung mit belastender Symptomatik und dokumentiertem Verlauf",
+        "vorbehandlung": "Nicht-medikamentoese Massnahmen und SSRI-Versuch wurden dokumentiert.",
+        "therapieversagen": "Vorbehandlung war wegen Unvertraeglichkeit und fehlender Wirkung nicht ausreichend.",
+        "praxisbesonderheit": "",
+        "bsg_off_label": {
+            "schwerwiegende_erkrankung": "Schwerwiegende Erkrankung wurde fachlich dokumentiert.",
+            "keine_alternative": "Keine geeignete Standardalternative ist verfuegbar.",
+            "begruendete_erfolgsaussicht": "Die Erfolgsaussicht ist anhand der Akte begruendet.",
+        },
+        "confirm": True,
+    }
+
+
 def test_health_endpoint_reports_ok(tmp_path):
     client = _make_client(tmp_path)
 
@@ -53,6 +68,72 @@ def test_api_check_validates_required_fields(tmp_path):
     assert "ICD" in payload["error"]
 
 
+def test_api_justify_returns_structured_justification(tmp_path):
+    client = _make_client(tmp_path)
+
+    response = client.post(
+        "/api/justify",
+        json={
+            "icd": "F41",
+            "atc": "N05BA01",
+            "alter": 72,
+            "answers": _valid_justification_answers(),
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "ok"
+    assert payload["result"]["icd"] == "F41"
+    assert payload["justification"]["confirmed"] is True
+    assert "diagnose" in payload["justification"]["answers"]
+
+
+def test_api_justify_reports_validation_errors(tmp_path):
+    client = _make_client(tmp_path)
+
+    response = client.post(
+        "/api/justify",
+        json={
+            "icd": "F41",
+            "atc": "N05BA01",
+            "alter": 72,
+            "answers": {"diagnose": "zu kurz"},
+        },
+    )
+
+    assert response.status_code == 400
+    payload = response.get_json()
+    assert payload["status"] == "error"
+    assert "errors" in payload
+    assert any("confirm" in item for item in payload["errors"])
+
+
+def test_api_workflow_returns_rendered_text(tmp_path):
+    client = _make_client(tmp_path)
+
+    response = client.post(
+        "/api/workflow",
+        json={
+            "icd": "R52.1",
+            "atc": "QV12",
+            "context": {
+                "kk": "Musterkasse",
+                "praxis": "Musterpraxis",
+                "arzt": "Dr. Muster",
+                "patient": "P-4711",
+            },
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload["status"] == "ok"
+    assert payload["workflow"]["workflow_type"]
+    assert "VORAB-KLAERUNGS-WORKFLOW" in payload["rendered_text"]
+    assert payload["result"]["icd"] == "R52.1"
+
+
 def test_html_form_renders_result(tmp_path):
     client = _make_client(tmp_path)
 
@@ -65,6 +146,42 @@ def test_html_form_renders_result(tmp_path):
     assert response.status_code == 200
     assert "Prüfergebnis" in page
     assert "N05BA01" in page
+
+
+def test_html_form_renders_justify_and_workflow_panels(tmp_path):
+    client = _make_client(tmp_path)
+
+    response = client.post(
+        "/",
+        data={"icd": "F41", "atc": "N05BA01", "alter": "72"},
+    )
+
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Strukturierte Begründung" in page
+    assert "Vorab-Workflow" in page
+    assert 'name="web_action" value="justify"' in page
+    assert 'name="web_action" value="workflow"' in page
+
+
+def test_html_workflow_form_renders_generated_text(tmp_path):
+    client = _make_client(tmp_path)
+
+    response = client.post(
+        "/",
+        data={
+            "web_action": "workflow",
+            "icd": "R52.1",
+            "atc": "QV12",
+            "kk": "Musterkasse",
+            "patient": "P-4711",
+        },
+    )
+
+    page = response.get_data(as_text=True)
+    assert response.status_code == 200
+    assert "Workflow-Typ:" in page
+    assert "VORAB-KLAERUNGS-WORKFLOW" in page
 
 
 def test_manifest_endpoint_returns_manifest_json(tmp_path):
