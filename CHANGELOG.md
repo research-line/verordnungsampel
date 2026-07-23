@@ -5,6 +5,12 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ## [Unreleased]
 
+### Geändert / Changed
+- Das kompakte Tray-Ampelsymbol exponiert den aktuellen Ampelstatus jetzt
+  zusätzlich im Tooltip (`GRÜN`, `GELB`, `ROT`) statt dauerhaft nur den
+  statischen App-Namen zu zeigen. Dadurch bleibt die ikonische Systray-UI
+  unverändert, ist für Screenreader- und Tastaturnutzung aber klarer.
+
 ### Hinzugefügt / Added
 - `llms.txt` als maschinenlesbarer Projektkontext mit klarer Nicht-MDSW-,
   Nicht-CDS- und Research-Use-Only-Abgrenzung.

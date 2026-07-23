@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from verordnungsampel import i18n
 from verordnungsampel.gui import strings_de as S
 
 
@@ -126,6 +127,18 @@ class TrayController:
     # Icon-Feedback
     # --------------------------------------------------------------
 
+    def _update_tray_tooltip(self, key: str) -> None:
+        """Spiegelt den kompakten Tray-Status in einen lesbaren Tooltip."""
+        state_text = {
+            "green": S.AMPEL_GRUEN,
+            "yellow": S.AMPEL_GELB,
+            "red": S.AMPEL_ROT,
+        }.get(key)
+        if state_text:
+            self.tray.setToolTip(i18n.t("TRAY_TOOLTIP_STATUS", state=state_text))
+        else:
+            self.tray.setToolTip(S.TRAY_TOOLTIP)
+
     def set_ampel_icon(self, farbe: str) -> None:
         """Setzt das Tray-Icon nach Ampelfarbe.
 
@@ -138,6 +151,7 @@ class TrayController:
             "rot": "red",
         }.get((farbe or "").lower(), "grey")
         self.tray.setIcon(self.icons[key])
+        self._update_tray_tooltip(key)
 
 
 def run_gui(argv: Optional[list] = None) -> int:

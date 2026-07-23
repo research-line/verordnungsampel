@@ -75,6 +75,7 @@ def test_qapplication_vorhanden(qapp):
 def test_tray_controller_und_icon(qapp):
     from verordnungsampel.gui.app import TrayController
     from verordnungsampel.gui.main_window import MainWindow
+    from verordnungsampel.gui import strings_de as S
 
     # Auf manchen Headless-Systemen meldet Qt kein Systray. In dem Fall nur
     # die Icon-Pfade pruefen, keinen echten Tray bauen.
@@ -91,10 +92,12 @@ def test_tray_controller_und_icon(qapp):
     controller = TrayController(qapp, window)
     try:
         assert controller.tray is not None
-        assert controller.tray.toolTip()
+        assert controller.tray.toolTip() == S.TRAY_TOOLTIP
         # Setzt auf eine der vier Farben, kein Fehler erwartet
         controller.set_ampel_icon("gelb")
+        assert S.AMPEL_GELB in controller.tray.toolTip()
         controller.set_ampel_icon("")  # fallback grey
+        assert controller.tray.toolTip() == S.TRAY_TOOLTIP
     finally:
         controller.tray.hide()
         window.deleteLater()

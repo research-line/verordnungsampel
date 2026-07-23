@@ -10,6 +10,7 @@
   "APP_TAGLINE": "Software draft — recourse risk indicators from public German GKV rule sets (no warranty)",
 
   "TRAY_TOOLTIP": "VerordnungsAmpel — risk check (software draft, no warranty)",
+  "TRAY_TOOLTIP_STATUS": "VerordnungsAmpel — risk check: {state} (software draft, no warranty)",
   "TRAY_SHOW": "Show window",
   "TRAY_HIDE": "Hide window",
   "TRAY_QUIT": "Quit",

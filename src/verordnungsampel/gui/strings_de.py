@@ -23,7 +23,7 @@ from verordnungsampel import i18n
 # Wird beim ersten Zugriff verifiziert (i18n liefert ansonsten TranslationError).
 _EXPORTED_KEYS: frozenset[str] = frozenset({
     "APP_TITLE", "APP_TAGLINE",
-    "TRAY_TOOLTIP", "TRAY_SHOW", "TRAY_HIDE", "TRAY_QUIT",
+    "TRAY_TOOLTIP", "TRAY_TOOLTIP_STATUS", "TRAY_SHOW", "TRAY_HIDE", "TRAY_QUIT",
     "MENU_FILE", "MENU_QUIT", "MENU_VIEW", "MENU_ALWAYS_ON_TOP",
     "MENU_MINIMAL_MODE", "MENU_TRANSPARENCY", "MENU_HELP", "MENU_ABOUT",
     "TAB_CHECK", "TAB_JUSTIFY", "TAB_WORKFLOW", "TAB_LOG",

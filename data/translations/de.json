@@ -10,6 +10,7 @@
   "APP_TAGLINE": "Softwareentwurf — Regress-Risikoindikatoren aus öffentlichen Regelwerken (ohne Gewähr)",
 
   "TRAY_TOOLTIP": "VerordnungsAmpel — Risiko-Check (Softwareentwurf, ohne Gewähr)",
+  "TRAY_TOOLTIP_STATUS": "VerordnungsAmpel — Risiko-Check: {state} (Softwareentwurf, ohne Gewähr)",
   "TRAY_SHOW": "Fenster anzeigen",
   "TRAY_HIDE": "Fenster verbergen",
   "TRAY_QUIT": "Beenden",
