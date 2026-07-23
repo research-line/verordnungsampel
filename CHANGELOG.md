@@ -79,6 +79,10 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 - README-Teststand auf 154 lokale Tests aktualisiert.
 - Repo-Hygiene ergänzt: `.gitattributes` für stabile Zeilenenden und `.gitignore` für SQLite-Sidecars, Coverage-, Cache- und Zertifikatsartefakte.
 - Repo-Hygiene nachgezogen: lokale Portierungspläne und interne Steuerungsdateien bleiben aus dem öffentlichen GitHub-Repo heraus; `llms.txt` und Web-MVP-Doku verweisen nur noch auf öffentliche Einstiegspunkte.
+- Repo-Hygiene (Review-Loop 2026-07-23): `.gitignore` um `_archive/` und `*.bak`
+  ergänzt; zwei verwaiste Bugsweep-Backup-Dateien aus `src/verordnungsampel/web/`
+  dorthin verschoben, damit Wegwerf-Artefakte nicht mehr im Working Tree bzw.
+  in `git status` auftauchen.
 
 ### Behoben / Fixed
 - GUI-RichText-Ausgaben in Check- und Regelwerke-Tab escapen jetzt auch

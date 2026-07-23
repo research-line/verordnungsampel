@@ -3,6 +3,10 @@
 # Referenz-Codebases (NICHT mit veröffentlichen, urheberrechtlich geschützt)
 _codebases/
 
+# Lokales Wegwerf-Archiv (Bugsweep-Backups u. ae., nie im Repo)
+_archive/
+*.bak
+
 # Python
 __pycache__/
 *.py[cod]
