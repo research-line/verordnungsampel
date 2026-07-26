@@ -1,5 +1,15 @@
 # VerordnungsAmpel
 
+[![Python Version](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12-blue.svg)](https://www.python.org/)
+[![License: GPL v3](https://img.shields.io/badge/License-GPL--3.0--or--later-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
+[![Tests](https://img.shields.io/badge/tests-171%20passed-brightgreen.svg)](https://github.com/research-line/verordnungsampel/actions)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)](#)
+[![UI Modes](https://img.shields.io/badge/UI-CLI%20%7C%20PySide6%20%7C%20PWA-informational.svg)](#gui-pyside6-tray-modus)
+[![Status](https://img.shields.io/badge/status-Pre--Alpha%20v0.1.0-orange.svg)](#)
+
+> [!NOTE]
+> **LLM / AI System Integration**: Machine-readable context, architectural boundaries, and dataset schemas are provided in [`llms.txt`](llms.txt).
+
 **VerordnungsAmpel** is a local-first Python and PySide6 software draft for
 German health-policy and prescribing-rule research. It compares ICD-10-GM and
 ATC combinations with public AM-RL / G-BA rule sets, PRISCUS 2.0 indicators and
@@ -199,6 +209,25 @@ internen Referenzordner.
 | ![VerordnungsAmpel main window showing a red indicator for ICD F41 and ATC N05BA01](README/screenshots/main-window.png) | ![VerordnungsAmpel legal disclaimer dialog before first use](README/screenshots/main.png) |
 
 ### Architektur
+
+```mermaid
+graph TD
+    User["User / Practitioner"] --> UI{"Interface Mode"}
+    UI -->|Desktop Companion| PySide6["PySide6 System-Tray GUI"]
+    UI -->|Terminal / Automation| CLI["Python CLI Core"]
+    UI -->|Local Browser| PWA["Local Flask PWA"]
+    
+    PySide6 --> Engine["VerordnungsAmpel Core Engine"]
+    CLI --> Engine
+    PWA --> Engine
+    
+    Engine --> Evaluator["Rule Evaluator (AM-RL / PRISCUS)"]
+    Engine --> HSM["Structured Rationale HSM"]
+    Engine --> Audit["Hash-Chain Compliance Audit Log"]
+    
+    Evaluator --> DB[("Local SQLite DB\n(regelwerk.db Schema v2)")]
+    DB <--- Seed["JSON Rule Seeds\n(AM-RL III / V / VI)"]
+```
 
 | Komponente | Wahl |
 |---|---|
