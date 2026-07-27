@@ -12,6 +12,11 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   unverändert, ist für Screenreader- und Tastaturnutzung aber klarer.
 
 ### Hinzugefügt / Added
+- Reproduzierbare Source-Smokes für CLI, PySide6-Import und lokalen
+  Loopback-Web-Start; sie verwenden nur temporäre Datenverzeichnisse und
+  enthalten keinen Installer-, Tray- oder Produktivnachweis.
+- `docs/SOURCE_PLATFORM_SMOKES.md` mit Prüfmatrix, lokalem Ausführungsweg und
+  klaren Plattformgrenzen für TW-VA-05.
 - `llms.txt` als maschinenlesbarer Projektkontext mit klarer Nicht-MDSW-,
   Nicht-CDS- und Research-Use-Only-Abgrenzung.
 - Zusätzlicher README-Screenshot `README/screenshots/main-window.png` für das
@@ -55,6 +60,9 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
   Icon-Endpoint-Status-200, Safe-Area-CSS (168 Tests gesamt)
 
 ### Geändert / Changed
+- Der Testworkflow läuft nun mit Python 3.11 auf Windows, macOS und Linux;
+  die native Runner-Evidenz bleibt bis zum jeweiligen erfolgreichen CI-Readback
+  offen.
 - README, `llms.txt`, `docs/WEB_MVP.md` und Paketmetadaten mit kanonischer
   Um:bruch-Projektseite, lokalen PWA-/Web-Nutzungshinweisen und zusätzlichen
   AM-RL-/G-BA-/Arzneimittel-Richtlinie-Suchankern synchronisiert.
