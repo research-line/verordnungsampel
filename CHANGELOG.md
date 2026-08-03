@@ -5,7 +5,8 @@ Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.1.0/).
 
 ## [Unreleased]
 
-### Hinzugefügt / Added
+### Geändert / Changed
+- Status & Hygiene (TW-VA-01 / TASKPLAN #1174): Test-Suite-Dokumentation auf den aktuellen Stand von 171/171 passed synchronisiert (README.md), `llms.txt` Last-checked Datum auf 2026-08-03 aktualisiert. [2026-08-03]
 - Marketing- & Discoverability-Wartung: Shields.io Badges, GFM LLM-Hinweisbox, Mermaid-Systemarchitekturdiagramm in `README.md` & `llms.txt` Index-Datum aktualisiert (2026-07-26).
 - `llms.txt` als maschinenlesbarer Projektkontext mit klarer Nicht-MDSW-,
   Nicht-CDS- und Research-Use-Only-Abgrenzung.
