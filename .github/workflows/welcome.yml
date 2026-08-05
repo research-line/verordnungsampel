@@ -16,12 +16,12 @@ jobs:
     steps:
       - uses: actions/first-interaction@v3
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          issue-message: >
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_message: >
             Thank you for opening your first issue here. Please keep in mind
             that VerordnungsAmpel is a research-use software draft, not a
             medical device, clinical decision support system or legal advice.
-          pr-message: >
+          pr_message: >
             Thank you for your first pull request. Please include tests or a
             concise verification note, and avoid adding patient data,
             credentials or non-public rule-source material.
